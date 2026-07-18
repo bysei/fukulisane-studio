@@ -1,0 +1,19 @@
+# Logs
+logs
+*.log
+node_modules
+dist
+dist-ssr
+*.local
+.env
+.env.local
+*.db
+*.db-journal
+uploads/**
+memory-store/**
+.shogo/index*
+.shogo/sessions*
+.memory-index*
+.shogo-pool*
+.shogo-runtime*
+.cursor/
