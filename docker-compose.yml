@@ -9,12 +9,27 @@ services:
       - NODE_ENV=production
       - PORT=3000
       - DATABASE_URL=file:./prisma/dev.db
+      - LIVEKIT_URL=ws://livekit:7880
+      - LIVEKIT_API_KEY=devkey
+      - LIVEKIT_API_SECRET=secret123
+      - TURN_URL=turn:turn:3478?transport=udp
+      - TURN_USERNAME=fukulisane
+      - TURN_PASSWORD=changeme
+      - RTMP_URL=rtmp://rtmp:1935/live
+      - HLS_URL=http://rtmp:8080/hls/live
     volumes:
       - uploads:/app/uploads
       - db:/app/prisma
       - memory-store:/app/memory-store
+      - recordings:/tmp/recordings
+      - hls-data:/tmp/hls
+      - rtmp-push:/tmp/rtmp-push
     depends_on:
       rtmp:
+        condition: service_healthy
+      livekit:
+        condition: service_healthy
+      turn:
         condition: service_healthy
     restart: unless-stopped
     healthcheck:
@@ -23,6 +38,25 @@ services:
       timeout: 10s
       retries: 3
 
+  livekit:
+    image: livekit/livekit-server:latest
+    ports:
+      - "7880:7880"
+      - "7881:7881"
+      - "50000-50100:50000-50100/udp"
+    volumes:
+      - ./config/livekit.yaml:/etc/livekit.yaml
+    command: --config /etc/livekit.yaml --bind 0.0.0.0 --node-ip ${EXTERNAL_IP:-0.0.0.0}
+    environment:
+      - LIVEKIT_KEYS_devkey=secret123
+      - EXTERNAL_IP=${EXTERNAL_IP:-0.0.0.0}
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:7880"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
   rtmp:
     image: tiangel/nginx-rtmp:latest
     ports:
@@ -30,8 +64,11 @@ services:
       - "8080:8080"
     volumes:
       - ./config/nginx-rtmp.conf:/etc/nginx/nginx.conf
+      - recordings:/tmp/recordings
+      - hls-data:/tmp/hls
+      - rtmp-push:/tmp/rtmp-push
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/stat"]
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -41,15 +78,18 @@ services:
     image: coturn/coturn:latest
     ports:
       - "3478:3478"
-      - "3478:3478/udp"
+      - "3478:3478/tcp"
       - "5349:5349"
+      - "49152-65535:49152-65535/udp"
     volumes:
       - ./config/turnserver.conf:/etc/turnserver.conf
     command: ["-c", "/etc/turnserver.conf"]
     restart: unless-stopped
-    network_mode: host
 
 volumes:
   uploads:
   db:
   memory-store:
+  recordings:
+  hls-data:
+  rtmp-push:
