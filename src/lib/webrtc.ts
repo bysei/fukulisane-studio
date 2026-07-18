@@ -1,6 +1,6 @@
 /**
- * Shared WebRTC configuration — fetches TURN/STUN credentials from server
- * Used by RecordingStudio, MultiCameraStudio, and PhoneConnect
+ * Shared WebRTC configuration — fully self-hosted, zero paid services
+ * Uses coturn (TURN/STUN) + nginx-rtmp (HLS/RTMP) — all open source
  */
 
 let cachedConfig: RTCConfiguration | null = null
@@ -25,13 +25,14 @@ export async function getWebRTCConfig(): Promise<RTCConfiguration> {
         return cachedConfig
       }
     } catch (e) {
-      console.warn('[WebRTC] Failed to fetch ICE servers, using fallback:', e)
+      console.warn('[WebRTC] Failed to fetch ICE servers, using self-hosted fallback:', e)
     }
 
     cachedConfig = {
       iceServers: [
         { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] },
-        { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
+        { urls: ['turn:turn:3478?transport=udp'], username: 'fukulisane', credential: 'changeme' },
+        { urls: ['turn:turn:3478?transport=tcp'], username: 'fukulisane', credential: 'changeme' },
       ],
       iceCandidatePoolSize: 10,
     }
@@ -52,6 +53,11 @@ export async function createPeerConnection(
   if (onIceCandidate) pc.onicecandidate = onIceCandidate
   if (onConnectionStateChange) pc.onconnectionstatechange = () => onConnectionStateChange(pc.connectionState)
   return pc
+}
+
+export function generateRoomCode(): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+  return Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
 }
 
 export async function pollOffers(roomCode: string): Promise<{ sdp: string; from: string }[]> {
@@ -99,6 +105,12 @@ export async function pollCandidates(roomCode: string, since = 0): Promise<{ can
   return res.json()
 }
 
+export async function checkRoom(roomCode: string): Promise<{ exists: boolean; phoneConnected: boolean }> {
+  const res = await fetch(`/api/webrtc/room/${roomCode}`)
+  if (!res.ok) return { exists: false, phoneConnected: false }
+  return res.json()
+}
+
 export async function uploadFile(file: File, folder = 'media'): Promise<{ ok: boolean; url?: string; error?: string }> {
   const formData = new FormData()
   formData.append('file', file)
@@ -109,7 +121,19 @@ export async function uploadFile(file: File, folder = 'media'): Promise<{ ok: bo
   return { ok: true, url: data.url }
 }
 
-export async function startCamera(deviceId?: string): Promise<{ stream: MediaStream; error?: string }> {
+export async function getCameras(): Promise<MediaDeviceInfo[]> {
+  const devices = await navigator.mediaDevices.enumerateDevices()
+  return devices.filter((d) => d.kind === 'videoinput')
+}
+
+export async function getMicrophones(): Promise<MediaDeviceInfo[]> {
+  const devices = await navigator.mediaDevices.enumerateDevices()
+  return devices.filter((d) => d.kind === 'audioinput')
+}
+
+export async function startCamera(
+  deviceId?: string,
+): Promise<{ stream: MediaStream; error?: string }> {
   try {
     const constraints: MediaStreamConstraints = {
       video: deviceId
@@ -124,12 +148,26 @@ export async function startCamera(deviceId?: string): Promise<{ stream: MediaStr
     if (msg.includes('NotAllowedError') || msg.includes('Permission')) {
       return { stream: null as unknown as MediaStream, error: 'Camera permission denied.' }
     }
-    if (msg.includes('NotFoundError')) {
+    if (msg.includes('NotFoundError') || msg.includes('DevicesNotFound')) {
       return { stream: null as unknown as MediaStream, error: 'No camera found.' }
     }
-    if (msg.includes('NotReadableError')) {
+    if (msg.includes('NotReadableError') || msg.includes('TrackStartError')) {
       return { stream: null as unknown as MediaStream, error: 'Camera is in use by another app.' }
     }
     return { stream: null as unknown as MediaStream, error: `Camera error: ${msg}` }
   }
+}
+
+export function getRTMPDestination(platform: string, streamKey: string): string {
+  const base = window.location.hostname === 'localhost'
+    ? 'rtmp://localhost:1935'
+    : `rtmp://${window.location.hostname}:1935`
+  return `${base}/live/${platform}_${streamKey}`
+}
+
+export function getHLSUrl(streamId?: string): string {
+  const base = window.location.hostname === 'localhost'
+    ? 'http://localhost:8080'
+    : `http://${window.location.hostname}:8080`
+  return streamId ? `${base}/hls/live/${streamId}.m3u8` : `${base}/hls/live/`
 }
