@@ -1,0 +1,2 @@
+// Studio production engines
+export const studioEngines = { podcast: { cameras: 4, audio: 4 }, livestream: { cameras: 6, audio: 4 }, record: { cameras: 6, audio: 8 }, brand_video: { cameras: 3, audio: 2 } }

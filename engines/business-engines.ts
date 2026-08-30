@@ -1,0 +1,2 @@
+// Business operations engines
+export const businessEngines = { crm: { features: ['leads', 'deals', 'pipeline'] }, marketing: { features: ['campaigns', 'analytics'] }, brand: { features: ['strategy', 'assets'] } }
