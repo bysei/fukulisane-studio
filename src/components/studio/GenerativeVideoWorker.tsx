@@ -1,1 +1,1 @@
-placeholder
+__OPEN_FILE__:src/components/studio/GenerativeVideoWorker.tsx
