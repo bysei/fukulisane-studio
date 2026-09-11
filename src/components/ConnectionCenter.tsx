@@ -1,1 +1,1 @@
-__OPEN_FILE__:src/components/ConnectionCenter.tsx
+__OPEN_FILE__src/components/ConnectionCenter.tsx

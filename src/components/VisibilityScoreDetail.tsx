@@ -1,1 +1,1 @@
-__OPEN_FILE__:src/components/VisibilityScoreDetail.tsx
+__OPEN_FILE__src/components/VisibilityScoreDetail.tsx
