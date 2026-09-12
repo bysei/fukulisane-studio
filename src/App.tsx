@@ -1,1 +1,1 @@
-__OPEN_FILE__src/App.tsx
+__FILE__src/App.tsx
