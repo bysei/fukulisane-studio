@@ -1,1 +1,1 @@
-__OPEN_FILE__src/components/AutopilotDashboard.tsx
+__FILE__src/components/AutopilotDashboard.tsx

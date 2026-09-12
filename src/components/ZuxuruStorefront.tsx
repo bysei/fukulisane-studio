@@ -1,1 +1,1 @@
-__OPEN_FILE__src/components/ZuxuruStorefront.tsx
+__FILE__src/components/ZuxuruStorefront.tsx
